@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>駐車場 収支シミュレーター｜株式会社 山陽エンタープライズ</title>
+<meta name="description" content="土地の広さと料金を入れるだけで、月極・時間貸し駐車場の月間売上と手残りの目安がわかる無料シミュレーターです。">
+<style>
+  :root {
+    --navy: #1b3a5c;
+    --navy-deep: #12283f;
+    --accent: #e8792b;
+    --accent-deep: #c9621a;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1f2a37;
+    --muted: #5f6b7a;
+    --line: #dde3ea;
+    --good: #1f7a4d;
+    --bad: #c0392b;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  /* .btn等でdisplayを指定した要素にもhidden属性を効かせる */
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+
+  header.hero {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-deep) 100%);
+    color: #fff;
+    padding: 28px 0 32px;
+  }
+  .hero .company { font-size: 13px; opacity: .85; margin: 0 0 6px; letter-spacing: .05em; }
+  .hero h1 { font-size: clamp(20px, 6.6vw, 24px); line-height: 1.35; margin: 0 0 10px; }
+  .hero p { margin: 0; font-size: 14px; opacity: .9; }
+
+  main { padding: 20px 0 40px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  @media (min-width: 840px) {
+    .layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+    .result-col { position: sticky; top: 16px; }
+    .hero h1 { font-size: 30px; }
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 3px rgba(18, 40, 63, .08);
+    padding: 20px 16px;
+  }
+  @media (min-width: 480px) { .card { padding: 24px; } }
+  .card + .card { margin-top: 16px; }
+  .card h2 {
+    font-size: 17px;
+    margin: 0 0 16px;
+    padding-left: 10px;
+    border-left: 4px solid var(--accent);
+    line-height: 1.3;
+  }
+
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .field > label, .field .label {
+    display: block;
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .input-row { display: flex; align-items: stretch; gap: 8px; }
+  .input-unit {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+  }
+  .input-unit:focus-within { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(27, 58, 92, .15); }
+  .input-unit input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    padding: 12px;
+    font-size: 18px;
+    text-align: right;
+    font-family: inherit;
+    color: var(--text);
+    background: transparent;
+    outline: none;
+  }
+  .input-unit .unit {
+    padding: 0 12px 0 4px;
+    color: var(--muted);
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .segmented {
+    display: inline-flex;
+    border: 1px solid var(--navy);
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .segmented button {
+    border: 0;
+    background: #fff;
+    color: var(--navy);
+    font: inherit;
+    font-size: 14px;
+    padding: 0 14px;
+    min-height: 44px;
+    cursor: pointer;
+  }
+  .segmented button + button { border-left: 1px solid var(--navy); }
+  .segmented button[aria-pressed="true"] { background: var(--navy); color: #fff; font-weight: bold; }
+  .segmented.wide { display: flex; width: 100%; }
+  .segmented.wide button { flex: 1; font-size: 15px; min-height: 48px; }
+
+  .auto-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: normal;
+    padding: 1px 8px;
+    border-radius: 999px;
+    margin-left: 6px;
+    vertical-align: 1px;
+    background: #e7eef6;
+    color: var(--navy);
+  }
+  .auto-badge.manual { background: #fdeee2; color: var(--accent-deep); }
+  .link-btn {
+    border: 0;
+    background: none;
+    color: var(--navy);
+    text-decoration: underline;
+    font: inherit;
+    font-size: 12px;
+    padding: 4px 0;
+    cursor: pointer;
+  }
+
+  /* 結果 */
+  .result-main {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-deep) 100%);
+    color: #fff;
+  }
+  .result-main h2 { border-left-color: var(--accent); }
+  .result-main .type-label { font-size: 13px; opacity: .85; margin: -8px 0 4px; }
+  .net-amount { font-size: 34px; font-weight: bold; line-height: 1.2; word-break: break-all; }
+  .net-amount small { font-size: 16px; font-weight: normal; margin-left: 2px; }
+  .net-amount.negative { color: #ffb4a8; }
+  .annual { font-size: 14px; opacity: .9; margin-top: 4px; }
+  .breakdown { margin: 16px 0 0; padding: 0; list-style: none; border-top: 1px solid rgba(255,255,255,.2); }
+  .breakdown li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    font-size: 14px;
+  }
+  .breakdown li span:last-child { font-weight: bold; white-space: nowrap; }
+
+  .bar {
+    display: flex;
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255,255,255,.15);
+    margin-top: 14px;
+  }
+  .bar span { display: block; height: 100%; transition: width .3s ease; }
+  .bar .b-net { background: #7fd1a5; }
+  .bar .b-mgmt { background: #f2b27c; }
+  .bar .b-fixed { background: #9fb4cc; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; margin-top: 8px; opacity: .9; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+
+  /* 比較カード */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare-card {
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 10px;
+    text-align: center;
+    background: #fff;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .compare-card.active { border-color: var(--accent); background: #fff8f2; }
+  .compare-card .c-title, .compare-card .c-cap, .compare-card .c-net, .compare-card .c-sub, .compare-card .c-cond { display: block; }
+  .compare-card .c-cond { font-size: 11px; color: var(--muted); margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); width: 100%; line-height: 1.5; }
+  .compare-card .c-cond span { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+  .compare-card .c-title { font-weight: bold; font-size: 14px; color: var(--navy); }
+  .compare-card .c-cap { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .compare-card .c-net { font-size: 19px; font-weight: bold; line-height: 1.3; word-break: break-all; }
+  .compare-card .c-net.negative { color: var(--bad); }
+  .compare-card .c-sub { font-size: 11px; color: var(--muted); }
+  .compare-card .c-badge {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 11px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 999px;
+    padding: 1px 8px;
+  }
+  .compare-note { font-size: 13px; margin: 12px 0 0; color: var(--text); }
+  .compare-note strong { color: var(--accent-deep); }
+
+  /* 問い合わせ */
+  .cta { text-align: center; border-top: 4px solid var(--accent); }
+  .cta h2 { border-left: 0; padding-left: 0; text-align: center; }
+  .cta p { font-size: 14px; margin: 0 0 16px; color: var(--muted); }
+  .cta-points { list-style: none; padding: 0; margin: 0 0 18px; text-align: left; font-size: 14px; }
+  .cta-points li { padding: 6px 0 6px 22px; position: relative; }
+  .cta-points li::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 13px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 54px;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: bold;
+    font-size: 16px;
+    text-decoration: none;
+    cursor: pointer;
+    border: 0;
+    padding: 12px 16px;
+  }
+  .btn + .btn { margin-top: 10px; }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 3px 0 var(--accent-deep); }
+  .btn-primary:hover { background: var(--accent-deep); }
+  .btn-tel { background: #fff; color: var(--navy); border: 2px solid var(--navy); }
+  .btn-sub { background: #eef2f6; color: var(--navy); font-size: 14px; min-height: 46px; }
+  .copy-status { font-size: 12px; color: var(--good); min-height: 18px; margin-top: 6px; }
+
+  .notes { font-size: 12px; color: var(--muted); }
+  .notes h2 { font-size: 14px; }
+  .notes ul { margin: 0; padding-left: 1.2em; }
+  .notes li { margin-bottom: 4px; }
+
+  footer { text-align: center; font-size: 12px; color: var(--muted); padding: 0 0 32px; }
+
+  /* スマホで入力中も手残りが見えるよう、結果欄が画面外の間だけ下部に表示する */
+  .mobile-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: var(--navy-deep);
+    color: #fff;
+    box-shadow: 0 -2px 10px rgba(18, 40, 63, .25);
+    transition: transform .2s ease;
+  }
+  .mobile-bar.is-hidden { transform: translateY(110%); }
+  /* キーボード表示で画面が縮む端末でも、フォーカスした入力欄が下部バーの裏に隠れないようにする */
+  html { scroll-padding-bottom: 90px; }
+  .mobile-bar .mb-label { display: block; font-size: 11px; opacity: .85; }
+  .mobile-bar .mb-net { display: block; font-size: 22px; font-weight: bold; line-height: 1.2; white-space: nowrap; }
+  .mobile-bar .mb-net.negative { color: #ffb4a8; }
+  .mobile-bar .mb-net small { font-size: 12px; font-weight: normal; margin-left: 2px; }
+  .mobile-bar button {
+    flex-shrink: 0;
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: bold;
+    min-height: 44px;
+    padding: 0 12px;
+    cursor: pointer;
+  }
+  @media (min-width: 840px) {
+    .mobile-bar { display: none; }
+    html { scroll-padding-bottom: 0; }
+  }
+
+  button:focus-visible, a:focus-visible { outline: 3px solid rgba(232, 121, 43, .6); outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="company">株式会社 山陽エンタープライズ｜駐車場機器の販売・施工・保守</p>
+    <h1>駐車場 収支シミュレーター</h1>
+    <p>空き地・遊休地を駐車場にしたら、毎月いくら残る？<br>土地の広さと料金を入れるだけで、月極・時間貸しの目安がすぐわかります。</p>
+  </div>
+</header>
+
+<main>
+  <div class="wrap layout">
+
+    <!-- 入力 -->
+    <div class="input-col">
+      <section class="card" aria-labelledby="h-land">
+        <h2 id="h-land">1. 土地について</h2>
+
+        <div class="field">
+          <label for="area">土地の広さ</label>
+          <div class="input-row">
+            <div class="input-unit">
+              <input id="area" type="text" inputmode="decimal" autocomplete="off" value="50">
+              <span class="unit" id="area-unit-label">坪</span>
+            </div>
+            <div class="segmented" role="group" aria-label="面積の単位">
+              <button type="button" data-unit="tsubo" aria-pressed="true">坪</button>
+              <button type="button" data-unit="m2" aria-pressed="false">㎡</button>
+            </div>
+          </div>
+          <div class="hint" id="area-conv"></div>
+        </div>
+
+        <div class="field">
+          <label for="spaces">想定台数 <span class="auto-badge" id="spaces-badge">自動計算</span></label>
+          <div class="input-unit">
+            <input id="spaces" type="text" inputmode="numeric" autocomplete="off" value="">
+            <span class="unit">台</span>
+          </div>
+          <div class="hint">1台あたり約4.5坪（通路含む）で自動計算。手入力で上書きできます。
+            <button type="button" class="link-btn" id="spaces-reset" hidden>自動計算に戻す</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-type">
+        <h2 id="h-type">2. 運用タイプと料金</h2>
+
+        <div class="field">
+          <span class="label" id="type-label">運用タイプ</span>
+          <div class="segmented wide" role="group" aria-labelledby="type-label">
+            <button type="button" data-type="monthly" aria-pressed="true">月極</button>
+            <button type="button" data-type="hourly" aria-pressed="false">時間貸し</button>
+          </div>
+        </div>
+
+        <div class="type-panel" id="panel-monthly">
+          <div class="field">
+            <label for="monthly-fee">1台あたり月額</label>
+            <div class="input-unit">
+              <input id="monthly-fee" type="text" inputmode="numeric" autocomplete="off" value="8,000">
+              <span class="unit">円 / 月</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="occupancy">稼働率</label>
+            <div class="input-unit">
+              <input id="occupancy" type="text" inputmode="decimal" autocomplete="off" value="80">
+              <span class="unit">%</span>
+            </div>
+            <div class="hint">契約で埋まっている区画の割合（0〜100%）</div>
+          </div>
+        </div>
+
+        <div class="type-panel" id="panel-hourly" hidden>
+          <div class="field">
+            <label for="hourly-rate">時間料金</label>
+            <div class="input-unit">
+              <input id="hourly-rate" type="text" inputmode="numeric" autocomplete="off" value="200">
+              <span class="unit">円 / 時間</span>
+            </div>
+            <div class="hint">例：30分100円なら200円</div>
+          </div>
+          <div class="field">
+            <label for="hours-per-day">1台あたり1日の平均稼働時間</label>
+            <div class="input-unit">
+              <input id="hours-per-day" type="text" inputmode="decimal" autocomplete="off" value="3">
+              <span class="unit">時間 / 日</span>
+            </div>
+            <div class="hint">1区画が1日に使われる時間の平均（最大24時間）</div>
+          </div>
+          <div class="field">
+            <label for="days-per-month">稼働日数</label>
+            <div class="input-unit">
+              <input id="days-per-month" type="text" inputmode="numeric" autocomplete="off" value="30">
+              <span class="unit">日 / 月</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-cost">
+        <h2 id="h-cost">3. 経費</h2>
+        <div class="field">
+          <label for="mgmt-rate">管理費率</label>
+          <div class="input-unit">
+            <input id="mgmt-rate" type="text" inputmode="decimal" autocomplete="off" value="5">
+            <span class="unit">% / 売上</span>
+          </div>
+          <div class="hint">管理会社へ委託する場合の手数料（売上に対する割合）</div>
+        </div>
+        <div class="field">
+          <label for="fixed-cost">固定費</label>
+          <div class="input-unit">
+            <input id="fixed-cost" type="text" inputmode="numeric" autocomplete="off" value="10,000">
+            <span class="unit">円 / 月</span>
+          </div>
+          <div class="hint">機器の保守料・電気代・通信費・清掃費など毎月かかる費用</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 結果 -->
+    <div class="result-col">
+      <section class="card result-main" aria-live="polite" aria-labelledby="h-result">
+        <h2 id="h-result">毎月の手残り（目安）</h2>
+        <p class="type-label" id="r-type"></p>
+        <div class="net-amount" id="r-net"></div>
+        <div class="annual" id="r-annual"></div>
+        <ul class="breakdown">
+          <li><span>想定台数</span><span id="r-spaces"></span></li>
+          <li><span>月間売上</span><span id="r-revenue"></span></li>
+          <li><span>管理費</span><span id="r-mgmt"></span></li>
+          <li><span>固定費</span><span id="r-fixed"></span></li>
+        </ul>
+        <div class="bar" aria-hidden="true">
+          <span class="b-net" id="bar-net"></span>
+          <span class="b-mgmt" id="bar-mgmt"></span>
+          <span class="b-fixed" id="bar-fixed"></span>
+        </div>
+        <div class="legend" aria-hidden="true">
+          <span><i style="background:#7fd1a5"></i>手残り</span>
+          <span><i style="background:#f2b27c"></i>管理費</span>
+          <span><i style="background:#9fb4cc"></i>固定費</span>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-compare">
+        <h2 id="h-compare">月極と時間貸しの比較</h2>
+        <div class="compare">
+          <button type="button" class="compare-card" data-type="monthly">
+            <span class="c-title">月極</span>
+            <span class="c-cap">月の手残り</span>
+            <span class="c-net" id="c-monthly-net"></span>
+            <span class="c-sub" id="c-monthly-rev"></span>
+            <span class="c-cond" id="c-monthly-cond"></span>
+            <span class="c-badge" id="c-monthly-badge" hidden>表示中</span>
+          </button>
+          <button type="button" class="compare-card" data-type="hourly">
+            <span class="c-title">時間貸し</span>
+            <span class="c-cap">月の手残り</span>
+            <span class="c-net" id="c-hourly-net"></span>
+            <span class="c-sub" id="c-hourly-rev"></span>
+            <span class="c-cond" id="c-hourly-cond"></span>
+            <span class="c-badge" id="c-hourly-badge" hidden>表示中</span>
+          </button>
+        </div>
+        <p class="compare-note" id="compare-note"></p>
+        <p class="hint">カードをタップすると運用タイプを切り替えられます。料金条件は各タイプの入力値を使用しています。</p>
+      </section>
+
+      <section class="card cta" aria-labelledby="h-cta">
+        <h2 id="h-cta">この土地、プロに無料で診断してもらいませんか？</h2>
+        <p>シミュレーションはあくまで目安です。実際の収支は立地や周辺相場、区画の取り方で大きく変わります。</p>
+        <ul class="cta-points">
+          <li>現地を確認して、区画レイアウトと台数をご提案</li>
+          <li>周辺相場をふまえた料金設定と収支計画</li>
+          <li>精算機・ロック板・ゲート等の機器選定から施工・保守まで一括対応</li>
+        </ul>
+        <a class="btn btn-primary" id="cta-contact" href="#">無料で相談する（お問い合わせフォーム）</a>
+        <a class="btn btn-tel" id="cta-tel" href="#" hidden></a>
+        <button type="button" class="btn btn-sub" id="copy-result">シミュレーション結果をコピーする</button>
+        <div class="copy-status" id="copy-status" role="status"></div>
+        <p class="hint" style="margin:0">コピーした内容をお問い合わせフォームに貼り付けていただくと、ご相談がスムーズです。</p>
+      </section>
+
+      <section class="card notes" aria-labelledby="h-notes">
+        <h2 id="h-notes">ご注意</h2>
+        <ul>
+          <li>本シミュレーションは入力値にもとづく概算であり、実際の収益を保証するものではありません。</li>
+          <li>想定台数は1台あたり約4.5坪での目安です。土地の形状・接道状況・法令上の制限などにより実際の台数は変わります。</li>
+          <li>駐車場の整備費用（舗装・区画線・精算機やロック板などの機器導入・工事費）は含まれていません。</li>
+          <li>固定資産税・都市計画税、所得税・消費税などの税金は考慮していません。</li>
+          <li>時間貸しの売上は、最大料金の設定や曜日・時間帯による利用の偏りにより変動します。</li>
+          <li>具体的な収支計画は、現地調査のうえ個別にご提案いたします。</li>
+        </ul>
+      </section>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">&copy; 株式会社 山陽エンタープライズ</div>
+</footer>
+
+<div class="mobile-bar" id="mobile-bar">
+  <div>
+    <span class="mb-label" id="mb-label"></span>
+    <span class="mb-net" id="mb-net"></span>
+  </div>
+  <button type="button" id="mb-jump">内訳・比較を見る</button>
+</div>
+
+<script id="sim-core">
+var ParkingSimCore = (function () {
+  var M2_PER_TSUBO = 3.305785;
+  var TSUBO_PER_SPACE = 4.5;
+
+  function toNumber(value) {
+    var text = String(value == null ? '' : value)
+      .replace(/[０-９．]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); })
+      .replace(/[,，\s]/g, '');
+    var num = parseFloat(text);
+    if (!isFinite(num) || num < 0) return 0;
+    return num;
+  }
+
+  function clamp(num, max) {
+    return Math.min(toNumber(num), max);
+  }
+
+  function areaToTsubo(area, unit) {
+    var num = toNumber(area);
+    return unit === 'm2' ? num / M2_PER_TSUBO : num;
+  }
+
+  function convertArea(area, fromUnit, toUnit) {
+    var num = toNumber(area);
+    if (fromUnit === toUnit) return num;
+    return toUnit === 'm2' ? num * M2_PER_TSUBO : num / M2_PER_TSUBO;
+  }
+
+  function estimateSpaces(tsubo) {
+    return Math.floor(toNumber(tsubo) / TSUBO_PER_SPACE);
+  }
+
+  function monthlyRevenue(p) {
+    return Math.floor(toNumber(p.spaces)) * toNumber(p.monthlyFee) * (clamp(p.occupancy, 100) / 100);
+  }
+
+  function hourlyRevenue(p) {
+    return Math.floor(toNumber(p.spaces)) * toNumber(p.hourlyRate) *
+      clamp(p.hoursPerDay, 24) * clamp(p.daysPerMonth, 31);
+  }
+
+  function summarize(revenue, mgmtRate, fixedCost) {
+    var rev = Math.round(toNumber(revenue));
+    var mgmt = Math.round(rev * clamp(mgmtRate, 100) / 100);
+    var fixed = Math.round(toNumber(fixedCost));
+    var net = rev - mgmt - fixed;
+    return { revenue: rev, mgmtFee: mgmt, fixedCost: fixed, net: net, annualNet: net * 12 };
+  }
+
+  // String()やtoFixed()は1e21以上で指数表記になり3桁区切りが壊れるため、toLocaleStringで整形する
+  function formatDecimal(num, digits) {
+    if (!isFinite(num)) num = 0;
+    var text = num.toLocaleString('en-US', { maximumFractionDigits: digits, useGrouping: true });
+    return text === '-0' ? '0' : text;
+  }
+
+  function formatNumber(num) {
+    return formatDecimal(isFinite(num) ? Math.round(num) : 0, 0);
+  }
+
+  return {
+    M2_PER_TSUBO: M2_PER_TSUBO,
+    TSUBO_PER_SPACE: TSUBO_PER_SPACE,
+    toNumber: toNumber,
+    clamp: clamp,
+    areaToTsubo: areaToTsubo,
+    convertArea: convertArea,
+    estimateSpaces: estimateSpaces,
+    monthlyRevenue: monthlyRevenue,
+    hourlyRevenue: hourlyRevenue,
+    summarize: summarize,
+    formatNumber: formatNumber,
+    formatDecimal: formatDecimal
+  };
+})();
+</script>
+
+<script>
+(function () {
+  // 設置時に自社の問い合わせページURL・電話番号を設定する。telが空なら電話ボタンは表示しない。
+  var CONFIG = {
+    contactUrl: 'https://www.seco.co.jp/contact',
+    tel: '086-462-7878',
+    telLabel: '086-462-7878'
+  };
+
+  var core = ParkingSimCore;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var state = {
+    unit: 'tsubo',
+    type: 'monthly',
+    spacesManual: false,
+    // 単位切替後の欄は小数1桁に丸めて表示するため、丸め前の値を保持して台数が変わらないようにする
+    exactArea: null
+  };
+
+  var inputs = {
+    area: $('area'),
+    spaces: $('spaces'),
+    monthlyFee: $('monthly-fee'),
+    occupancy: $('occupancy'),
+    hourlyRate: $('hourly-rate'),
+    hoursPerDay: $('hours-per-day'),
+    daysPerMonth: $('days-per-month'),
+    mgmtRate: $('mgmt-rate'),
+    fixedCost: $('fixed-cost')
+  };
+
+  var yen = function (n) { return core.formatNumber(n) + '円'; };
+
+  function areaValue() {
+    return state.exactArea !== null ? state.exactArea : inputs.area.value;
+  }
+
+  function autoSpaces() {
+    return core.estimateSpaces(core.areaToTsubo(areaValue(), state.unit));
+  }
+
+  function currentSpaces() {
+    return state.spacesManual ? Math.floor(core.toNumber(inputs.spaces.value)) : autoSpaces();
+  }
+
+  function calculateBoth() {
+    var spaces = currentSpaces();
+    var mgmtRate = inputs.mgmtRate.value;
+    var fixedCost = inputs.fixedCost.value;
+    return {
+      spaces: spaces,
+      monthly: core.summarize(core.monthlyRevenue({
+        spaces: spaces,
+        monthlyFee: inputs.monthlyFee.value,
+        occupancy: inputs.occupancy.value
+      }), mgmtRate, fixedCost),
+      hourly: core.summarize(core.hourlyRevenue({
+        spaces: spaces,
+        hourlyRate: inputs.hourlyRate.value,
+        hoursPerDay: inputs.hoursPerDay.value,
+        daysPerMonth: inputs.daysPerMonth.value
+      }), mgmtRate, fixedCost)
+    };
+  }
+
+  function setBar(result) {
+    var total = result.revenue > 0 ? Math.max(result.revenue, result.mgmtFee + result.fixedCost) : 0;
+    var pct = function (n) { return total > 0 ? Math.max(0, n) / total * 100 : 0; };
+    $('bar-net').style.width = pct(result.net) + '%';
+    $('bar-mgmt').style.width = pct(result.mgmtFee) + '%';
+    $('bar-fixed').style.width = pct(Math.min(result.fixedCost, total - result.mgmtFee)) + '%';
+  }
+
+  // 狭いカード内で「30日」などが途中改行されないよう、項目単位でのみ折り返す
+  function setConditions(el, parts) {
+    el.innerHTML = '';
+    parts.forEach(function (part, i) {
+      if (i > 0) el.appendChild(document.createTextNode('・'));
+      var span = document.createElement('span');
+      span.textContent = part;
+      el.appendChild(span);
+    });
+  }
+
+  function render() {
+    // 台数欄を空にして打ち直している最中に自動値で上書きしないよう、フォーカス中は触らない
+    if (!state.spacesManual && document.activeElement !== inputs.spaces) {
+      inputs.spaces.value = String(autoSpaces());
+    }
+
+    var tsubo = core.areaToTsubo(areaValue(), state.unit);
+    $('area-conv').textContent = state.unit === 'tsubo'
+      ? '約 ' + core.formatDecimal(tsubo * core.M2_PER_TSUBO, 1) + ' ㎡'
+      : '約 ' + core.formatDecimal(tsubo, 1) + ' 坪';
+
+    var results = calculateBoth();
+    var selected = results[state.type];
+
+    $('r-type').textContent = state.type === 'monthly' ? '月極駐車場の場合' : '時間貸し駐車場の場合';
+    $('r-net').innerHTML = '';
+    $('r-net').appendChild(document.createTextNode(core.formatNumber(selected.net)));
+    var small = document.createElement('small');
+    small.textContent = '円 / 月';
+    $('r-net').appendChild(small);
+    $('r-net').classList.toggle('negative', selected.net < 0);
+    $('r-annual').textContent = '年間 約 ' + yen(selected.annualNet);
+    $('r-spaces').textContent = core.formatNumber(results.spaces) + '台';
+    $('r-revenue').textContent = yen(selected.revenue);
+    $('r-mgmt').textContent = '−' + yen(selected.mgmtFee);
+    $('r-fixed').textContent = '−' + yen(selected.fixedCost);
+    setBar(selected);
+
+    ['monthly', 'hourly'].forEach(function (type) {
+      var r = results[type];
+      var netEl = $('c-' + type + '-net');
+      netEl.textContent = yen(r.net);
+      netEl.classList.toggle('negative', r.net < 0);
+      $('c-' + type + '-rev').textContent = '売上 ' + yen(r.revenue);
+      $('c-' + type + '-badge').hidden = state.type !== type;
+    });
+    // 選択していない側の入力欄は隠れているため、比較の前提条件をカード内に示す
+    setConditions($('c-monthly-cond'), [
+      '月額' + yen(core.toNumber(inputs.monthlyFee.value)),
+      '稼働率' + core.formatDecimal(core.clamp(inputs.occupancy.value, 100), 1) + '%'
+    ]);
+    setConditions($('c-hourly-cond'), [
+      yen(core.toNumber(inputs.hourlyRate.value)) + '/時',
+      core.formatDecimal(core.clamp(inputs.hoursPerDay.value, 24), 1) + '時間/日',
+      core.formatDecimal(core.clamp(inputs.daysPerMonth.value, 31), 1) + '日'
+    ]);
+
+    $('mb-label').textContent = (state.type === 'monthly' ? '月極' : '時間貸し') + 'の手残り（目安）';
+    var mbNet = $('mb-net');
+    mbNet.textContent = core.formatNumber(selected.net);
+    var mbUnit = document.createElement('small');
+    mbUnit.textContent = '円 / 月';
+    mbNet.appendChild(mbUnit);
+    mbNet.classList.toggle('negative', selected.net < 0);
+
+    var diff = results.hourly.net - results.monthly.net;
+    var note = $('compare-note');
+    note.innerHTML = '';
+    if (diff === 0) {
+      note.textContent = 'この条件では、月極と時間貸しの手残りは同じです。';
+    } else {
+      var winner = diff > 0 ? '時間貸し' : '月極';
+      var strong = document.createElement('strong');
+      strong.textContent = '月 ' + yen(Math.abs(diff)) + '（年 ' + yen(Math.abs(diff) * 12) + '）';
+      note.appendChild(document.createTextNode('この条件では' + winner + 'のほうが '));
+      note.appendChild(strong);
+      note.appendChild(document.createTextNode(' 多く残る見込みです。'));
+    }
+  }
+
+  function setUnit(unit) {
+    if (unit === state.unit) return;
+    var converted = core.convertArea(areaValue(), state.unit, unit);
+    state.unit = unit;
+    state.exactArea = converted;
+    inputs.area.value = core.formatDecimal(converted, 1);
+    $('area-unit-label').textContent = unit === 'm2' ? '㎡' : '坪';
+    document.querySelectorAll('[data-unit]').forEach(function (btn) {
+      btn.setAttribute('aria-pressed', String(btn.getAttribute('data-unit') === unit));
+    });
+    render();
+  }
+
+  function setType(type) {
+    state.type = type;
+    document.querySelectorAll('.segmented [data-type]').forEach(function (btn) {
+      btn.setAttribute('aria-pressed', String(btn.getAttribute('data-type') === type));
+    });
+    document.querySelectorAll('.compare-card').forEach(function (card) {
+      card.classList.toggle('active', card.getAttribute('data-type') === type);
+    });
+    $('panel-monthly').hidden = type !== 'monthly';
+    $('panel-hourly').hidden = type !== 'hourly';
+    render();
+  }
+
+  function setSpacesManual(manual) {
+    state.spacesManual = manual;
+    var badge = $('spaces-badge');
+    badge.textContent = manual ? '手入力' : '自動計算';
+    badge.classList.toggle('manual', manual);
+    $('spaces-reset').hidden = !manual;
+  }
+
+  function buildSummaryText() {
+    var results = calculateBoth();
+    // 計算側で0埋め・上限丸めをした後の値を載せ、画面の結果と文面を一致させる
+    var dec = function (value, max) { return core.formatDecimal(core.clamp(value, max), 1); };
+    var areaText = dec(areaValue(), Infinity) + (state.unit === 'm2' ? '㎡' : '坪');
+    var lines = [
+      '【駐車場 収支シミュレーション結果】',
+      '土地の広さ：' + areaText,
+      '想定台数：' + core.formatNumber(results.spaces) + '台' + (state.spacesManual ? '（手入力）' : ''),
+      '管理費率：' + dec(inputs.mgmtRate.value, 100) + '% / 固定費：' + yen(core.toNumber(inputs.fixedCost.value)) + '/月',
+      '',
+      '■月極（月額' + yen(core.toNumber(inputs.monthlyFee.value)) + '・稼働率' + dec(inputs.occupancy.value, 100) + '%）',
+      '　売上 ' + yen(results.monthly.revenue) + ' / 手残り ' + yen(results.monthly.net) + '/月',
+      '■時間貸し（' + yen(core.toNumber(inputs.hourlyRate.value)) + '/時間・' + dec(inputs.hoursPerDay.value, 24) + '時間/日・' + dec(inputs.daysPerMonth.value, 31) + '日/月）',
+      '　売上 ' + yen(results.hourly.revenue) + ' / 手残り ' + yen(results.hourly.net) + '/月'
+    ];
+    return lines.join('\n');
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      ta.style.fontSize = '16px';
+      document.body.appendChild(ta);
+      ta.select();
+      // iOS Safariはselect()だけでは選択範囲が作られない
+      ta.setSelectionRange(0, text.length);
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      ok ? resolve() : reject();
+    });
+  }
+
+  // 3桁区切りの表示は入力中に行うとカーソル位置が飛ぶため、フォーカスが外れた時だけ整形する
+  var yenFields = [inputs.monthlyFee, inputs.hourlyRate, inputs.fixedCost];
+  yenFields.forEach(function (el) {
+    el.addEventListener('focus', function () { el.value = el.value.replace(/,/g, ''); });
+    el.addEventListener('blur', function () {
+      if (el.value.trim() !== '') el.value = core.formatNumber(core.toNumber(el.value));
+    });
+  });
+
+  // 計算時に上限・0で丸めた値を、欄から離れた時点で欄にも反映し「入力値と計算値のズレ」に気づけるようにする
+  var boundedFields = [
+    [inputs.area, Infinity],
+    [inputs.occupancy, 100],
+    [inputs.mgmtRate, 100],
+    [inputs.hoursPerDay, 24],
+    [inputs.daysPerMonth, 31]
+  ];
+  boundedFields.forEach(function (pair) {
+    var el = pair[0];
+    var max = pair[1];
+    el.addEventListener('blur', function () {
+      if (el.value.trim() !== '') el.value = core.formatDecimal(core.clamp(el.value, max), 1);
+    });
+  });
+
+  Object.keys(inputs).forEach(function (key) {
+    var el = inputs[key];
+    // 初期値を消す手間を省くため、フォーカス時に全選択する。
+    // クリック時はmouseupで選択が解除されるブラウザがあるため次のタスクで選択する
+    el.addEventListener('focus', function () {
+      setTimeout(function () {
+        if (document.activeElement === el) el.setSelectionRange(0, el.value.length);
+      }, 0);
+    });
+    el.addEventListener('input', function () {
+      if (key === 'spaces') setSpacesManual(inputs.spaces.value.trim() !== '');
+      if (key === 'area') state.exactArea = null;
+      render();
+    });
+  });
+
+  inputs.spaces.addEventListener('blur', function () {
+    if (state.spacesManual) inputs.spaces.value = core.formatNumber(currentSpaces());
+    render();
+  });
+
+  $('spaces-reset').addEventListener('click', function () {
+    setSpacesManual(false);
+    render();
+  });
+
+  document.querySelectorAll('[data-unit]').forEach(function (btn) {
+    btn.addEventListener('click', function () { setUnit(btn.getAttribute('data-unit')); });
+  });
+  document.querySelectorAll('[data-type]').forEach(function (btn) {
+    btn.addEventListener('click', function () { setType(btn.getAttribute('data-type')); });
+  });
+
+  $('copy-result').addEventListener('click', function () {
+    var status = $('copy-status');
+    copyText(buildSummaryText()).then(function () {
+      status.style.color = '';
+      status.textContent = '結果をコピーしました。お問い合わせフォームに貼り付けてご利用ください。';
+    }, function () {
+      status.style.color = 'var(--bad)';
+      status.textContent = 'コピーできませんでした。お手数ですが画面の数値をお伝えください。';
+    });
+  });
+
+  $('mb-jump').addEventListener('click', function () {
+    document.querySelector('.result-main').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  if ('IntersectionObserver' in window) {
+    var resultCol = document.querySelector('.result-col');
+    new IntersectionObserver(function (entries) {
+      $('mobile-bar').classList.toggle('is-hidden', entries[0].isIntersecting);
+    }).observe(resultCol);
+  }
+
+  $('cta-contact').href = CONFIG.contactUrl;
+  if (CONFIG.tel) {
+    var telLink = $('cta-tel');
+    telLink.href = 'tel:' + CONFIG.tel.replace(/[^\d+]/g, '');
+    telLink.textContent = '電話で相談する ' + (CONFIG.telLabel || CONFIG.tel);
+    telLink.hidden = false;
+  }
+
+  setType('monthly');
+})();
+</script>
+</body>
+</html>
